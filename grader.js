@@ -24,6 +24,7 @@ References:
 var fs = require('fs');
 var program = require('commander');
 var cheerio = require('cheerio');
+var restler = require('restler');
 var HTMLFILE_DEFAULT = "index.html";
 var CHECKSFILE_DEFAULT = "checks.json";
 
@@ -36,16 +37,45 @@ var assertFileExists = function(infile) {
     return instr;
 };
 
-var cheerioHtmlFile = function(htmlfile) {
-    return cheerio.load(fs.readFileSync(htmlfile));
+var loadContentAndCont = function(file, url, contFn) {
+  if (file != undefined && url != undefined) {
+     console.log("specify either file or url, but not both");
+     process.exit(1);
+  }
+
+  if (file == undefined && url == undefined) {
+    file = HTMLFILE_DEFAULT;
+  }
+    
+  if (file != undefined) {
+    file = assertFileExists(file);
+  }
+
+  if (url != undefined) {
+    restler.get(url).on('complete', function(result) {
+      if (result instanceof Error) {
+        console.log("error downloading %s. Exiting. error:", url, result.message);
+        process.exit(1);
+      } else {
+        contFn(result);
+      }
+    });
+  } else {
+    contFn(fs.readFileSync(file));
+  }
+}
+    
+var cheerioHtmlFile = function(htmlContent) {
+    return cheerio.load(htmlContent);
 };
 
 var loadChecks = function(checksfile) {
     return JSON.parse(fs.readFileSync(checksfile));
 };
 
-var checkHtmlFile = function(htmlfile, checksfile) {
-    $ = cheerioHtmlFile(htmlfile);
+
+var checkHtmlFile = function(htmlContent, checksfile) {
+    $ = cheerioHtmlFile(htmlContent);
     var checks = loadChecks(checksfile).sort();
     var out = {};
     for(var ii in checks) {
@@ -58,11 +88,18 @@ var checkHtmlFile = function(htmlfile, checksfile) {
 if(require.main == module) {
     program
         .option('-c, --checks <checks>', 'Path to checks.json', assertFileExists, CHECKSFILE_DEFAULT)
-        .option('-f, --file <file>', 'Path to index.html', assertFileExists, HTMLFILE_DEFAULT)
+        .option('-f, --file <file>', 'Path to index.html')
+        .option('-u, --url <url>', 'url instead of file')
         .parse(process.argv);
-    var checkJson = checkHtmlFile(program.file, program.checks);
-    var outJson = JSON.stringify(checkJson, null, 4);
-    console.log(outJson);
+
+    var contFn = function(htmlContent) {
+      var checkJson = checkHtmlFile(htmlContent, program.checks);
+      var outJson = JSON.stringify(checkJson, null, 4);
+      console.log(outJson);
+    } 
+    
+    loadContentAndCont(program.file, program.url, contFn);
+
 } else {
     exports.checkHtmlFile = checkHtmlFile;
 }
