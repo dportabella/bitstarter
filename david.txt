@@ -1,0 +1,6 @@
+http://evening-cove-3845.herokuapp.com
+git@heroku.com:evening-cove-3845.git
+https://github.com/dportabella/bitstarter
+
+https://d396qusza40orc.cloudfront.net/startup/lecture_slides%2Flecture2-interactive-start.pdf
+https://class.coursera.org/startup-001/assignment/view?assignment_id=7
